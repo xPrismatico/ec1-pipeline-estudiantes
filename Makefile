@@ -1,82 +1,70 @@
-#################################################################################
-# GLOBALS                                                                       #
-#################################################################################
+# ==========================================
+# Variables de configuración y rutas
+# ==========================================
+PYTHON = python
+SRC_DIR = src
+DATA_RAW = data/raw/estudiantes.csv
+DATA_VALIDADO = data/interim/validado.csv
+REPORTE_VALIDACION = data/interim/reporte_validacion.txt
+DATA_IMPUTADO = data/interim/imputado.csv
+DATA_TRANSFORMADO = data/processed/transformado.csv
+RESUMEN = data/processed/resumen.txt
+REPORTE_FINAL = reports/reporte_final.md
 
-PROJECT_NAME = ec1_pipeline_estudiantes
-PYTHON_VERSION = 3.11
-PYTHON_INTERPRETER = python
+# ==========================================
+# Objetivos que no producen archivos (.PHONY)
+# ==========================================
+.PHONY: all lint limpiar estado directorios
 
-#################################################################################
-# COMMANDS                                                                      #
-#################################################################################
+# ==========================================
+# Objetivo Principal
+# ==========================================
+all: lint $(REPORTE_FINAL)
 
-
-## Install Python dependencies
-.PHONY: requirements
-requirements:
-	conda env update --name $(PROJECT_NAME) --file environment.yml --prune
-	
-
-
-
-## Delete all compiled Python files
-.PHONY: clean
-clean:
-	find . -type f -name "*.py[co]" -delete
-	find . -type d -name "__pycache__" -delete
-
-
-## Lint using ruff (use `make format` to do formatting)
-.PHONY: lint
+# ==========================================
+# Calidad de Código
+# ==========================================
 lint:
-	ruff format --check
-	ruff check
+	@echo "Ejecutando Ruff (Linter y Formateador)..."
+	ruff check $(SRC_DIR)/
+	ruff format --check $(SRC_DIR)/
 
-## Format source code with ruff
-.PHONY: format
-format:
-	ruff check --fix
-	ruff format
+# ==========================================
+# Reglas del Pipeline (Grafo de Dependencias)
+# ==========================================
 
+# Regla auxiliar multiplataforma para crear las carpetas si no existen
+directorios:
+	@$(PYTHON) -c "import os; os.makedirs('data/interim', exist_ok=True); os.makedirs('data/processed', exist_ok=True); os.makedirs('reports', exist_ok=True)"
 
+# Script 1: Validar
+$(DATA_VALIDADO) $(REPORTE_VALIDACION): $(DATA_RAW) $(SRC_DIR)/validar.py | directorios
+	$(PYTHON) $(SRC_DIR)/validar.py
 
+# Script 2: Imputar
+$(DATA_IMPUTADO): $(DATA_VALIDADO) $(SRC_DIR)/imputar.py | directorios
+	$(PYTHON) $(SRC_DIR)/imputar.py
 
+# Script 3: Transformar
+$(DATA_TRANSFORMADO): $(DATA_IMPUTADO) $(SRC_DIR)/transformar.py | directorios
+	$(PYTHON) $(SRC_DIR)/transformar.py
 
-## Set up Python interpreter environment
-.PHONY: create_environment
-create_environment:
-	conda env create --name $(PROJECT_NAME) -f environment.yml
-	
-	@echo ">>> conda env created. Activate with:\nconda activate $(PROJECT_NAME)"
-	
+# Script 4: Resumir
+$(RESUMEN): $(DATA_TRANSFORMADO) $(SRC_DIR)/resumir.py | directorios
+	$(PYTHON) $(SRC_DIR)/resumir.py
 
+# Script 5: Reporte Final (Dependencia Múltiple)
+$(REPORTE_FINAL): $(DATA_TRANSFORMADO) $(RESUMEN) $(SRC_DIR)/reporte.py | directorios
+	$(PYTHON) $(SRC_DIR)/reporte.py
 
+# ==========================================
+# Utilidades Multiplataforma
+# ==========================================
+limpiar:
+	@echo "Limpiando archivos generados..."
+	@$(PYTHON) -c "import os, glob; files = glob.glob('data/interim/*') + glob.glob('data/processed/*') + glob.glob('reports/*'); [os.remove(f) for f in files if os.path.isfile(f)]"
+	@echo "Limpieza completada."
 
-#################################################################################
-# PROJECT RULES                                                                 #
-#################################################################################
-
-
-## Make dataset
-.PHONY: data
-data: requirements
-	$(PYTHON_INTERPRETER) procesamiento/dataset.py
-
-
-#################################################################################
-# Self Documenting Commands                                                     #
-#################################################################################
-
-.DEFAULT_GOAL := help
-
-define PRINT_HELP_PYSCRIPT
-import re, sys; \
-lines = '\n'.join([line for line in sys.stdin]); \
-matches = re.findall(r'\n## (.*)\n[\s\S]+?\n([a-zA-Z_-]+):', lines); \
-print('Available rules:\n'); \
-print('\n'.join(['{:25}{}'.format(*reversed(match)) for match in matches]))
-endef
-export PRINT_HELP_PYSCRIPT
-
-help:
-	@$(PYTHON_INTERPRETER) -c "${PRINT_HELP_PYSCRIPT}" < $(MAKEFILE_LIST)
+estado:
+	@echo "--- Estado de los Archivos del Pipeline ---"
+	@$(PYTHON) -c "import os; files=[('$(DATA_RAW)', 'CRUDO'), ('$(DATA_VALIDADO)', 'INTERMEDIO'), ('$(REPORTE_VALIDACION)', 'INTERMEDIO'), ('$(DATA_IMPUTADO)', 'INTERMEDIO'), ('$(DATA_TRANSFORMADO)', 'PROCESADO'), ('$(RESUMEN)', 'PROCESADO'), ('$(REPORTE_FINAL)', 'REPORTE')]; [print(f'[OK] {f[0]} ({f[1]})' if os.path.exists(f[0]) else f'[ ] {f[0]} (FALTA)') for f in files]"
