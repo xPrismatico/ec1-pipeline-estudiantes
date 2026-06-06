@@ -5,7 +5,7 @@ def validar_datos(ruta_entrada: str, ruta_csv: str, ruta_txt: str) -> None:
     """Lee y valida el dataset de estudiantes, identificando nulos y anomalías."""
     df: pl.DataFrame = pl.read_csv(ruta_entrada)
 
-    # 1. Crear columna 'tiene_faltantes'
+    # 1. Crear columna tiene_faltantes
     df_validado: pl.DataFrame = df.with_columns(
         pl.any_horizontal(pl.all().is_null()).alias("tiene_faltantes")
     )
@@ -14,7 +14,7 @@ def validar_datos(ruta_entrada: str, ruta_csv: str, ruta_txt: str) -> None:
     # 2. Análisis para el reporte
     nulos_por_columna: dict[str, int] = df.null_count().to_dicts()[0]
 
-    # ¡AQUÍ ESTABA EL ERROR! Usamos df_validado en lugar de df
+    # Usamos df_validado
     filas_con_nulos: pl.DataFrame = df_validado.filter(pl.col("tiene_faltantes"))
     nombres_nulos: list[str] = filas_con_nulos["nombre"].to_list()
 

@@ -5,7 +5,7 @@ def transformar_datos(ruta_entrada: str, ruta_salida: str) -> None:
     """Calcula promedios, estado de aprobación y categoría del estudiante."""
     df: pl.DataFrame = pl.read_csv(ruta_entrada)
 
-    # Transformación 100% idiomática en Polars
+    # Transformación idiomática en Polars
     df_transformado: pl.DataFrame = (
         df.with_columns(
             pl.mean_horizontal("nota1", "nota2", "nota3").round(2).alias("promedio")

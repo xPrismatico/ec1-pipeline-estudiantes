@@ -10,7 +10,7 @@ def generar_reporte(ruta_csv: str, ruta_resumen: str, ruta_reporte: str) -> None
     with open(ruta_resumen, "r", encoding="utf-8") as f:
         contenido_resumen: str = f.read()
 
-    # Extraer información de imputaciones basada en el flag inicial
+    # Extraer información de imputaciones
     filas_imputadas: pl.DataFrame = df.filter(pl.col("tiene_faltantes"))
     nombres_imputados: list[str] = filas_imputadas["nombre"].to_list()
     total_imputados: int = len(nombres_imputados)
